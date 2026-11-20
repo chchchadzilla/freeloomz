@@ -41,6 +41,7 @@ const ON = new Set([
   'overlay:cursor',
   'overlay:mode',
   'ui:enter',
+  'ui:visible',
   'ui:leave',
 ]);
 

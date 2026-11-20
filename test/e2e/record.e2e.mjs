@@ -286,7 +286,16 @@ test('a recording interrupted by a crash is offered for recovery on next launch'
   await banner.waitFor({ state: 'detached', timeout: 10_000 });
 });
 
-test('real screen capture: the bubble, the pointer and the right pixels end up in the video', { timeout: 120_000 }, async (t) => {
+// Run twice on Linux: once with the bubble's window cut to shape (what Linux
+// uses) and once with pointer tracking (what macOS and Windows use), so the
+// code path those systems rely on is exercised here too.
+for (const hitMode of ['shape', 'track']) realScreenTest(hitMode);
+
+/** @param {string} hitMode */
+function realScreenTest(hitMode) {
+  test(`real screen capture (${hitMode}): the bubble, the pointer and the right pixels end up in the video`, { timeout: 120_000 }, async (t) => {
+  if (hitMode === 'track') process.env.FREELOOMZ_BUBBLE_TRACK = '1';
+  t.after(() => delete process.env.FREELOOMZ_BUBBLE_TRACK);
   if (process.platform !== 'linux') return t.skip('needs an X display it can draw a known picture on');
   if (spawnSync('which', ['xdotool']).status !== 0) return t.skip('xdotool is not installed');
 
@@ -307,6 +316,10 @@ test('real screen capture: the bubble, the pointer and the right pixels end up i
     <div style="position:fixed;right:0;top:0;width:200px;height:200px;background:#10c010"></div>
     <div style="position:fixed;right:0;bottom:0;width:200px;height:200px;background:#e0e010"></div>
     <h1 style="font:700 80px sans-serif;color:#fff;text-align:center;margin-top:40vh">Demo app</h1></body>`);
+  await demo.evaluate(() => {
+    /** @type {any} */ (window).clicks = 0;
+    addEventListener('mousedown', () => (/** @type {any} */ (window).clicks += 1));
+  });
   await sleep(1500);
 
   // No fake devices here, so the screen is the real screen. This machine
@@ -318,6 +331,17 @@ test('real screen capture: the bubble, the pointer and the right pixels end up i
   await bubble.locator('#placeholder').waitFor({ state: 'visible', timeout: 15_000 });
   assert.equal(await control.locator('#micSelect').isDisabled(), true, 'no microphone: the picker says so');
   const bounds = await main.bubbleBounds();
+
+  // The bubble's window is square but only the circle may catch clicks:
+  // a click on its transparent corner must reach the app underneath.
+  const clicks = () => demo.evaluate(() => /** @type {any} */ (window).clicks);
+  const clickAt = (x, y) => spawnSync('xdotool', ['mousemove', String(Math.round(x)), String(Math.round(y)), 'sleep', '0.25', 'click', '1']);
+  const before = await clicks();
+  clickAt(bounds.x + 7, bounds.y + 7);
+  await waitFor(async () => (await clicks()) === before + 1, 5000, 'a click on the bubble window corner to reach the app underneath');
+  clickAt(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await sleep(400);
+  assert.equal(await clicks(), before + 1, 'a click on the bubble itself stays with the bubble');
 
   await control.locator('#recordButton').click();
   await main.waitForStatus('recording', 20_000);
@@ -338,8 +362,8 @@ test('real screen capture: the bubble, the pointer and the right pixels end up i
   assert.deepEqual([info.video.width, info.video.height], [1920, 1080]);
   assert.equal(info.audio, null, 'no microphone, so no audio track');
   assert.ok(info.durationSec > 3.5, `got ${info.durationSec}s`);
-  saveFrame(file, 3, path.join(artifacts, 'screen-frame.png'));
-  fs.copyFileSync(file, path.join(artifacts, 'screen.mp4'));
+  saveFrame(file, 3, path.join(artifacts, `screen-frame-${hitMode}.png`));
+  fs.copyFileSync(file, path.join(artifacts, `screen-${hitMode}.mp4`));
 
   const frame = grabFrame(file, 3);
   const near = (rgb, want, tol = 45) => rgb.every((v, i) => Math.abs(v - want[i]) <= tol);
@@ -356,7 +380,8 @@ test('real screen capture: the bubble, the pointer and the right pixels end up i
   // The cursor highlight halo surrounds the pointer.
   const halo = frame.pixel(target.x + 22, target.y);
   assert.ok(halo[0] > 80 && halo[1] > 110 && halo[2] < 200 && !near(halo, [43, 95, 217], 20), `cursor highlight is visible around the pointer, got ${halo}`);
-});
+  });
+}
 
 test('survives the recorder process dying, and pauses when the computer sleeps', { timeout: 120_000 }, async (t) => {
   const h = await launchApp({ name: 'resilience', settings: { countdown: 0 } });
@@ -413,4 +438,70 @@ test('survives the recorder process dying, and pauses when the computer sleeps',
   const last = (await main.state()).lastRecording.path;
   assert.ok(probeFile(last).audio, 'has an audio track');
   assert.ok(meanVolume(last) > -60, 'and the audio is not silent');
+});
+
+test('overlapping commands settle cleanly and leave nothing behind', { timeout: 150_000 }, async (t) => {
+  const h = await launchApp({ name: 'races', settings: { countdown: 3, cursorHighlight: false } });
+  t.after(h.close);
+  const { main } = h;
+  const escapeGrabbed = () => h.app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered('Escape'));
+  const fire = (...names) =>
+    h.app.evaluate((_electron, list) => {
+      const { controller } = /** @type {any} */ (globalThis).__freeloomz;
+      // Issued back to back in the same tick, without waiting for each other.
+      return Promise.all(list.map((name) => controller.command(name).catch((err) => `error: ${err.message}`)));
+    }, names);
+
+  /** Issues a command without waiting for it to finish. */
+  const kick = (name) =>
+    h.app.evaluate((_electron, n) => {
+      void (/** @type {any} */ (globalThis).__freeloomz.controller.command(n).catch(() => {}));
+    }, name);
+
+  // ---- cancel during the countdown: nothing is recorded
+  await kick('start');
+  await main.waitForStatus('countdown', 20_000);
+  await main.command('stop');
+  await main.waitForStatus('idle', 10_000);
+  assert.equal((await main.state()).lastRecording, null);
+  assert.equal(newestRecording(h.recordings), null);
+  const tmp = path.join(h.recordings, '.freeloomz-tmp');
+  assert.deepEqual(fs.existsSync(tmp) ? fs.readdirSync(tmp) : [], [], 'no stray files');
+  await main.update({ countdown: 0 });
+
+  // ---- pause, resume and stop fired on top of each other
+  await main.command('start');
+  await main.waitForStatus('recording', 20_000);
+  await sleep(2500);
+  await main.command('toggleMic'); // muted for this take only
+  assert.equal((await main.state()).micMuted, true);
+  await fire('togglePause', 'togglePause', 'togglePause', 'stop', 'stop', 'togglePause');
+  await main.waitForStatus('idle', 60_000);
+  let state = await main.state();
+  assert.equal(state.error, null);
+  assert.ok(state.lastRecording, 'exactly one recording came out of it');
+  assert.equal(fs.readdirSync(h.recordings).filter((f) => f.endsWith('.mp4')).length, 1);
+  assert.ok(probeFile(state.lastRecording.path).durationSec > 1.5);
+
+  // ---- discard while drawing: Escape must be given back to the system
+  await main.command('dismiss');
+  await main.command('start');
+  await main.waitForStatus('recording', 20_000);
+  state = await main.state();
+  assert.equal(state.micMuted, false, 'a mute never carries over into the next take');
+  await sleep(1500);
+  await main.command('toggleDraw');
+  await waitFor(async () => (await main.state()).drawing, 5000, 'draw mode');
+  assert.equal(await escapeGrabbed(), true, 'Escape leaves draw mode while drawing');
+  await fire('discard', 'discard');
+  await main.waitForStatus('idle', 30_000);
+  assert.equal(await escapeGrabbed(), false, 'Escape is released when the recording is discarded');
+  state = await main.state();
+  assert.equal(state.drawing, false);
+  assert.equal(state.lastRecording, null, 'a discarded recording is not saved');
+  assert.equal(fs.readdirSync(h.recordings).filter((f) => f.endsWith('.mp4')).length, 1, 'still just the one from before');
+
+  // ---- muting while idle does nothing (it would be an invisible trap)
+  await main.command('toggleMic');
+  assert.equal((await main.state()).micMuted, false);
 });

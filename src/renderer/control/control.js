@@ -28,6 +28,8 @@ let estimatedBps = 0;
 let currentView = 'record';
 /** @type {any} */ let playing = null; // library item open in the player
 let exporting = false;
+/** Whether the window is actually on screen, as reported by the app. */
+let windowVisible = true;
 /** Cross-fading panel groups; created in boot(). */
 /** @type {ReturnType<typeof switcher>} */ let views;
 /** @type {ReturnType<typeof switcher>} */ let stages;
@@ -171,7 +173,10 @@ async function boot() {
     refreshDevices();
     refreshPermissions();
   });
-  document.addEventListener('visibilitychange', syncMicMonitor);
+  api.on('ui:visible', (visible) => {
+    windowVisible = Boolean(visible);
+    syncMicMonitor();
+  });
 }
 
 async function refreshEstimates() {
@@ -255,7 +260,7 @@ function syncMicMonitor() {
     state?.status === 'idle' &&
     !state.lastRecording &&
     currentView === 'record' &&
-    document.visibilityState === 'visible' &&
+    windowVisible &&
     settings.micEnabled &&
     micAvailable();
   micMonitor.update({ enabled: Boolean(wanted), deviceId: settings.micDeviceId });
@@ -345,7 +350,10 @@ function renderBanners() {
   const button = (label, onclick, cls = '') => el('button', { class: `btn small ${cls}`, onclick }, label);
 
   if (state.error) banner(`error:${state.error}`, 'error', 'That didn’t work', state.error, [button('OK', () => command('dismiss'))]);
-  if (state.notice && state.status === 'idle') banner(`notice:${state.notice}`, 'warn', null, state.notice, [button('OK', () => command('dismiss'))]);
+  // Notices matter mid-recording too ("paused because the screen was locked").
+  if (state.notice && ['idle', 'recording', 'paused'].includes(state.status)) {
+    banner(`notice:${state.notice}`, 'warn', null, state.notice, [button('OK', () => command('dismiss'))]);
+  }
 
   const needs = [];
   if (settings.mode !== 'camera' && permissions.screen && permissions.screen !== 'granted') needs.push(['screen', 'Screen recording']);

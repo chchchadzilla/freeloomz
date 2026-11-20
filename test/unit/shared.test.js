@@ -21,7 +21,7 @@ import {
   recordingTimeLeftMs,
 } from '../../src/shared/time.js';
 import { recordingBaseName, sanitizeFileName, uniquePath, rawExtensionFor, pickMimeType } from '../../src/shared/naming.js';
-import { clampToArea, defaultBubblePosition, snapToCorner, resizeAroundCenter, shapeRects } from '../../src/shared/geometry.js';
+import { clampToArea, defaultBubblePosition, snapToCorner, resizeAroundCenter, shapeRects, pointInBubble } from '../../src/shared/geometry.js';
 import { finalizeArgs, trimArgs, gifArgs, parseProbe, parseProgressSeconds } from '../../src/shared/ffargs.js';
 
 // ---------------------------------------------------------------- settings
@@ -252,6 +252,38 @@ test('shapeRects covers a circle: right area, symmetric, inside the window', () 
   assert.ok(roundedArea > area && roundedArea < size * size);
   assert.ok(shapeRects('circle', 240, 12).every((r) => r.x >= 12 && r.y >= 12 && r.x + r.width <= 228));
   assert.deepEqual(shapeRects('circle', 0), []);
+});
+
+test('pointInBubble: only the visible shape is solid, not the window corners', () => {
+  // 240px bubble in a 272px window (16px transparent margin).
+  const hit = (x, y, shape = 'circle') => pointInBubble(x, y, 272, 16, /** @type {any} */ (shape));
+  assert.equal(hit(136, 136), true, 'centre');
+  assert.equal(hit(136, 20), true, 'top of the circle');
+  assert.equal(hit(22, 22), false, 'window corner, outside the circle');
+  assert.equal(hit(250, 250), false, 'opposite corner');
+  assert.equal(hit(5, 136), false, 'in the transparent margin');
+  assert.equal(hit(-10, 136), false, 'outside the window');
+  // A rounded square fills its corners almost completely.
+  assert.equal(hit(30, 30, 'rounded'), true);
+  assert.equal(hit(17, 17, 'rounded'), false, 'the very tip of a rounded corner');
+  assert.equal(hit(136, 136, 'rounded'), true);
+  // Agrees, pixel for pixel, with the outline used to cut the window on
+  // Linux — the two ways of keeping the corners click-through must match.
+  for (const shape of /** @type {const} */ (['circle', 'rounded'])) {
+    const size = 96;
+    const inShape = new Set();
+    for (const r of shapeRects(shape, size)) {
+      for (let y = r.y; y < r.y + r.height; y += 1) for (let x = r.x; x < r.x + r.width; x += 1) inShape.add(`${x},${y}`);
+    }
+    let mismatches = 0;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        if (pointInBubble(x + 0.5, y + 0.5, size, 0, shape, 0) !== inShape.has(`${x},${y}`)) mismatches += 1;
+      }
+    }
+    assert.equal(mismatches, 0, `${shape}: every pixel centre agrees`);
+  }
+  assert.equal(pointInBubble(5, 5, 0, 0, 'circle'), false);
 });
 
 // ------------------------------------------------------------------ ffmpeg

@@ -97,7 +97,8 @@ export function shapeRects(shape, windowSize, inset = 0) {
     let cut = 0;
     if (y < radius) cut = radius - Math.sqrt(Math.max(0, radius * radius - (radius - y) ** 2));
     else if (y > size - radius) cut = radius - Math.sqrt(Math.max(0, radius * radius - (y - (size - radius)) ** 2));
-    const x0 = Math.ceil(cut);
+    // A pixel belongs to the shape when its centre does.
+    const x0 = Math.max(0, Math.ceil(cut - 0.5));
     const width = size - 2 * x0;
     if (width <= 0) continue;
     const last = rects[rects.length - 1];
@@ -108,4 +109,28 @@ export function shapeRects(shape, windowSize, inset = 0) {
     }
   }
   return rects;
+}
+
+/**
+ * Is a point (relative to the bubble window's top-left) on the visible
+ * bubble, as opposed to the transparent area around it? The bubble's window
+ * is square; only the shape drawn inside it should catch clicks.
+ * @param {number} x
+ * @param {number} y
+ * @param {number} windowSize
+ * @param {number} pad   transparent margin between window edge and bubble
+ * @param {'circle' | 'rounded'} shape
+ * @param {number} [slack] extra pixels of forgiveness around the edge
+ */
+export function pointInBubble(x, y, windowSize, pad, shape, slack = 2) {
+  const size = windowSize - pad * 2;
+  if (size <= 0) return false;
+  const lx = x - pad;
+  const ly = y - pad;
+  if (lx < -slack || ly < -slack || lx > size + slack || ly > size + slack) return false;
+  const radius = shape === 'circle' ? size / 2 : Math.min(size / 2, Math.round(size * 0.18));
+  // Distance to the nearest corner-circle centre; zero along the straight edges.
+  const dx = Math.max(radius - lx, 0, lx - (size - radius));
+  const dy = Math.max(radius - ly, 0, ly - (size - radius));
+  return dx * dx + dy * dy <= (radius + slack) ** 2;
 }

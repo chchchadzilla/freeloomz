@@ -2,7 +2,7 @@ import { BrowserWindow, Menu, screen } from 'electron';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { BUBBLE_MAX, BUBBLE_MIN, BUBBLE_PRESETS } from '../shared/defaults.js';
-import { clampToArea, defaultBubblePosition, resizeAroundCenter, shapeRects, snapToCorner } from '../shared/geometry.js';
+import { clampToArea, defaultBubblePosition, pointInBubble, resizeAroundCenter, shapeRects, snapToCorner } from '../shared/geometry.js';
 
 const here = import.meta.dirname;
 const PRELOAD = path.join(here, '../preload/api.cjs');
@@ -40,11 +40,28 @@ export function overlaySupported() {
 }
 
 /**
+ * How the transparent area around the bubble is kept from swallowing clicks
+ * meant for whatever is underneath:
+ *  • 'shape' — the window itself is cut to the bubble's outline (Linux; also
+ *    the only thing that works without a compositor);
+ *  • 'track' — the window stays square, and is made click-through whenever
+ *    the pointer is not over the bubble (macOS, Windows).
+ */
+const BUBBLE_HIT_MODE = isLinux && !process.env.FREELOOMZ_BUBBLE_TRACK ? 'shape' : 'track';
+
+/**
  * Space around the bubble inside its (transparent) window, for the drop
  * shadow. Linux gets none: there the window itself is cut to the bubble's
  * outline, which works with or without a compositor.
  */
 export const BUBBLE_PAD = isLinux ? 0 : 16;
+
+/**
+ * On macOS, only "panel" windows may float above another app's full-screen
+ * space — and a tutorial is often recorded with the app full screen. Panels
+ * also do not steal focus from the app being demonstrated when clicked.
+ */
+const FLOATING = isMac ? { type: 'panel' } : {};
 
 const webPreferences = () => ({
   preload: PRELOAD,
@@ -72,6 +89,7 @@ export class WindowManager {
     this._cursorTimer = /** @type {NodeJS.Timeout | null} */ (null);
     this._drag = /** @type {{ dx: number, dy: number } | null} */ (null);
     this._bubbleLeaving = /** @type {NodeJS.Timeout | null} */ (null);
+    this._hitTimer = /** @type {NodeJS.Timeout | null} */ (null);
     this._fade = 0;
   }
 
@@ -125,6 +143,16 @@ export class WindowManager {
       webPreferences: webPreferences(),
     });
     win.once('ready-to-show', () => win.show());
+    // The page cannot tell on its own whether it is on screen (it is never
+    // throttled, so it always believes it is visible). Tell it, so it lets
+    // go of the microphone while nobody is looking at the level meter.
+    const reportVisibility = () => {
+      if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+        win.webContents.send('ui:visible', win.isVisible() && !win.isMinimized());
+      }
+    };
+    for (const event of ['show', 'hide', 'minimize', 'restore']) win.on(/** @type {any} */ (event), reportVisibility);
+    win.webContents.on('did-finish-load', reportVisibility);
     win.on('close', (event) => this.onControlClose(event));
     win.on('closed', () => {
       this.control = null;
@@ -268,6 +296,7 @@ export class WindowManager {
       show: false,
       acceptFirstMouse: true,
       title: 'Freeloomz camera',
+      ...FLOATING,
       webPreferences: webPreferences(),
     });
     // Float above everything, including full-screen apps, on every desktop.
@@ -275,15 +304,54 @@ export class WindowManager {
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
     win.once('ready-to-show', () => win.showInactive());
     win.on('closed', () => {
-      if (this.bubble === win) this.bubble = null;
+      if (this.bubble === win) {
+        this.bubble = null;
+        this._stopBubbleHitTest();
+      }
     });
     win.loadFile(page('bubble'));
     this.bubble = win;
     this._applyBubbleShape();
+    this._startBubbleHitTest();
+  }
+
+  /**
+   * Makes only the visible bubble "solid": while the pointer is over the
+   * transparent corners of its window, clicks pass through to the app
+   * underneath. Decided here from the pointer position, so it does not
+   * depend on the window receiving any events while it is click-through.
+   */
+  _startBubbleHitTest() {
+    this._stopBubbleHitTest();
+    if (BUBBLE_HIT_MODE !== 'track') return;
+    let passingThrough = false;
+    this._hitTimer = setInterval(() => {
+      const win = this.bubble;
+      if (!win || win.isDestroyed()) return;
+      let onBubble = true; // while dragging, never let go
+      if (!this._drag) {
+        const p = screen.getCursorScreenPoint();
+        const b = win.getBounds();
+        onBubble = pointInBubble(p.x - b.x, p.y - b.y, b.width, BUBBLE_PAD, this.settings.get().bubble.shape);
+      }
+      if (onBubble === passingThrough) {
+        passingThrough = !onBubble;
+        try {
+          win.setIgnoreMouseEvents(passingThrough);
+        } catch {
+          /* window is closing */
+        }
+      }
+    }, 30);
+  }
+
+  _stopBubbleHitTest() {
+    if (this._hitTimer) clearInterval(this._hitTimer);
+    this._hitTimer = null;
   }
 
   _applyBubbleShape() {
-    if (!isLinux || !this.bubble || this.bubble.isDestroyed()) return;
+    if (BUBBLE_HIT_MODE !== 'shape' || !this.bubble || this.bubble.isDestroyed()) return;
     const { shape, size } = this.settings.get().bubble;
     try {
       this.bubble.setShape(shapeRects(shape, WindowManager.bubbleWindowSize(size), BUBBLE_PAD));
@@ -398,10 +466,12 @@ export class WindowManager {
         hasShadow: false,
         alwaysOnTop: true,
         show: false,
+        ...FLOATING,
         webPreferences: webPreferences(),
       });
       this.countdown = win;
       win.setAlwaysOnTop(true, 'screen-saver', 2);
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
       win.setIgnoreMouseEvents(true);
       if (isLinux) {
         try {
@@ -453,6 +523,7 @@ export class WindowManager {
       show: false,
       enableLargerThanScreen: true,
       title: 'Freeloomz overlay',
+      ...FLOATING,
       webPreferences: webPreferences(),
     });
     win.setAlwaysOnTop(true, 'screen-saver', 0);
@@ -522,6 +593,7 @@ export class WindowManager {
 
   destroyAll() {
     this._stopCursorFeed();
+    this._stopBubbleHitTest();
     if (this._bubbleLeaving) clearTimeout(this._bubbleLeaving);
     for (const win of [this.overlay, this.countdown, this.bubble, this.control]) {
       if (win && !win.isDestroyed()) win.destroy();

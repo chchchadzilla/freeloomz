@@ -238,6 +238,12 @@ test('library lists recordings with duration and thumbnail, and renames safely',
   assert.ok(after.thumbnail, 'thumbnail follows the rename');
   await assert.rejects(library.rename(renamed, '???'), /no usable characters/);
 
+  // Changing only the capitalisation is a rename, not a name clash.
+  const recased = await library.rename(renamed, 'MY HOURS getting started');
+  assert.equal(path.basename(recased), 'MY HOURS getting started.mp4');
+  const back = await library.rename(recased, 'My Hours getting started');
+  assert.equal(back, renamed);
+
   library.flush();
   assert.ok(fs.existsSync(path.join(tmpRoot, 'lib', 'index.json')));
 

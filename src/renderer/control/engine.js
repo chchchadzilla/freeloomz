@@ -148,6 +148,10 @@ export class CaptureEngine {
 
   async start() {
     if (!this.stream) throw new Error('Not prepared');
+    // The screen can be unplugged (or access revoked) during the countdown.
+    if (this.stream.getVideoTracks()[0]?.readyState !== 'live') {
+      throw new Error('The screen or camera became unavailable just before recording started. Please try again.');
+    }
     const o = this.options;
     const recorder = new MediaRecorder(this.stream, {
       mimeType: this.mime,

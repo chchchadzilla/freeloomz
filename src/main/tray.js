@@ -35,11 +35,15 @@ export class AppTray {
     try {
       this.tray = new Tray(this.idleIcon);
       this.tray.setToolTip('Freeloomz');
-      // Left-click: stop if recording, otherwise open the window.
-      this.tray.on('click', () => {
-        if (this.controller.isCapturing) this.controller.stop();
-        else this.windows.showControl();
-      });
+      // Windows: left-click stops a recording or opens the window; the menu
+      // is on right-click. On macOS a click opens the menu itself, so a
+      // click action there would fire on the way to "Pause" — menu only.
+      if (process.platform === 'win32') {
+        this.tray.on('click', () => {
+          if (this.controller.isCapturing) this.controller.stop();
+          else this.windows.showControl();
+        });
+      }
       this.update(controller.snapshot());
     } catch (err) {
       // Some Linux desktops have no tray at all. Not fatal.
@@ -93,7 +97,7 @@ export class AppTray {
           click: cmd('toggleCamera'),
           ...accel(sc.toggleCamera),
         },
-        { label: 'Mute microphone', type: 'checkbox', checked: state.micMuted, click: cmd('toggleMic'), ...accel(sc.toggleMic) },
+        { label: 'Mute microphone', type: 'checkbox', checked: state.micMuted, enabled: capturing, click: cmd('toggleMic'), ...accel(sc.toggleMic) },
         { label: 'Draw on screen', type: 'checkbox', checked: state.drawing, click: cmd('toggleDraw'), ...accel(sc.toggleDraw) },
         { type: 'separator' },
         { label: 'Open Freeloomz', click: () => this.windows.showControl() },

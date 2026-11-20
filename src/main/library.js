@@ -177,7 +177,11 @@ export class Library extends EventEmitter {
     const dir = path.dirname(file);
     const ext = path.extname(file);
     if (clean === path.basename(file, ext)) return file;
-    const target = uniquePath(dir, clean, ext, (p) => fs.existsSync(p), path.join);
+    const wanted = path.join(dir, `${clean}${ext}`);
+    // Only the capitalisation changed: on macOS and Windows the "existing"
+    // file with that name is this very file, not a clash.
+    const sameFile = wanted.toLowerCase() === file.toLowerCase();
+    const target = sameFile ? wanted : uniquePath(dir, clean, ext, (p) => fs.existsSync(p), path.join);
     await retryWhileBusy(() => fsp.rename(file, target));
     const entry = this.index[path.resolve(file)];
     const oldThumb = this.thumbPathFor(file);

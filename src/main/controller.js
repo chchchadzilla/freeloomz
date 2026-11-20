@@ -27,9 +27,13 @@ export class Controller extends EventEmitter {
    * @param {{ call: (name: string, args?: any, timeoutMs?: number) => Promise<any> }} o.engine
    * @param {() => Promise<string>} o.ensureRecordingsDir
    * @param {{ systemAudio: boolean, contentProtection: boolean, overlay: boolean }} o.capabilities
+   * @param {(mode: string) => Promise<string | null>} [o.preflight] returns a message when the OS will not let us record
    */
-  constructor({ settings, windows, library, engine, ensureRecordingsDir, capabilities }) {
+  constructor({ settings, windows, library, engine, ensureRecordingsDir, capabilities, preflight }) {
     super();
+    this.preflight = preflight ?? (async () => null);
+    this._lock = /** @type {Promise<any>} */ (Promise.resolve());
+    this._finishingId = /** @type {string | null} */ (null);
     this.settings = settings;
     this.windows = windows;
     this.library = library;
@@ -120,9 +124,11 @@ export class Controller extends EventEmitter {
       case 'discard':
         return this.discard();
       case 'dismiss':
-        this.error = null;
         this.notice = null;
-        this.lastRecording = null;
+        if (this.status === 'idle') {
+          this.error = null;
+          this.lastRecording = null;
+        }
         return this.broadcast();
       default:
         throw new Error(`Unknown command: ${name}`);
@@ -140,12 +146,50 @@ export class Controller extends EventEmitter {
     return { display, frame, bitrate };
   }
 
+  /**
+   * Runs state-changing commands one at a time. Without this, a stop that
+   * arrives while a pause is still in flight (two shortcuts in quick
+   * succession, the lid closing just as a display disconnects) could
+   * interleave with it and leave the recorder in an impossible state.
+   * @template T
+   * @param {() => Promise<T>} task
+   * @returns {Promise<T>}
+   */
+  _exclusive(task) {
+    const run = this._lock.then(task, task);
+    this._lock = run.then(
+      () => {},
+      () => {},
+    );
+    return run;
+  }
+
+  /** Journal id of the recording being made or finished, if any. */
+  get activeJournalId() {
+    return this.session?.journal.id ?? this._finishingId ?? null;
+  }
+
+  /** Resolves once nothing is being recorded, saved or discarded. */
+  whenIdle() {
+    if (this.status === 'idle') return Promise.resolve();
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.status !== 'idle') return;
+        this.off('state', check);
+        resolve(undefined);
+      };
+      this.on('state', check);
+    });
+  }
+
   async start() {
     if (this.status !== 'idle') return;
     this.error = null;
     this.notice = null;
     this.lastRecording = null;
     this.markers = 0;
+    // A mute left over from the last take must never silence this one.
+    this.micMuted = false;
     this.stopwatch.reset();
     this._abort = new AbortController();
     const { signal } = this._abort;
@@ -153,6 +197,9 @@ export class Controller extends EventEmitter {
 
     try {
       const s = this.settings.get();
+      const blocked = await this.preflight(s.mode);
+      if (blocked) throw new Error(blocked);
+
       const dir = await this.ensureRecordingsDir();
       this.freeBytes = await freeSpace(dir);
       if (this.freeBytes !== null && this.freeBytes < MIN_FREE_BYTES * 2) {
@@ -170,7 +217,7 @@ export class Controller extends EventEmitter {
           cameraDeviceId: s.cameraDeviceId,
           micDeviceId: s.micDeviceId,
           micEnabled: s.micEnabled,
-          micMuted: this.micMuted,
+          micMuted: false,
           systemAudio: s.systemAudio && this.capabilities.systemAudio,
           fps: s.fps,
           width: frame.width,
@@ -206,12 +253,15 @@ export class Controller extends EventEmitter {
 
       this.session = new RecordingSession({ recordingsDir: dir, mime: prepared.mime });
       await this.session.open();
+      if (signal.aborted) throw new Cancelled();
       await this.engine.call('start');
 
       this.stopwatch.start();
       this._powerBlocker = powerSaveBlocker.start('prevent-display-sleep');
       this._startTicker();
       this._set('recording');
+      // Cancel was pressed in the very last instant: honour it.
+      if (signal.aborted) void this.discard();
     } catch (err) {
       await this.engine.call('release').catch(() => {});
       if (this.session) await this.session.discard().catch(() => {});
@@ -226,13 +276,19 @@ export class Controller extends EventEmitter {
 
   /**
    * Stops and saves. Also cancels a countdown that is still running.
+   * Resolves when the finished file is on disk.
    * @param {{ reason?: string }} [opts]
    */
-  async stop(opts = {}) {
+  stop(opts = {}) {
     if (this.status === 'preparing' || this.status === 'countdown') {
       this._abort?.abort();
-      return;
+      return Promise.resolve();
     }
+    return this._exclusive(() => this._stop(opts));
+  }
+
+  /** @param {{ reason?: string }} opts */
+  async _stop(opts) {
     if (!this.isCapturing || !this.session) return;
     const session = this.session;
     this.stopwatch.pause();
@@ -251,9 +307,11 @@ export class Controller extends EventEmitter {
     await this.engine.call('release').catch(() => {});
 
     this._releasePower();
-    if (this.windows.drawing) this.setDrawing(false);
-    this.windows.hideOverlay();
+    this._endOverlay();
     await session.close(durationMs).catch((err) => console.error('[controller] close failed:', err));
+    // Still ours until it is finished, so recovery does not mistake it for
+    // an abandoned recording.
+    this._finishingId = session.journal.id;
     this.session = null;
     this._restoreWindows({ show: true });
 
@@ -282,6 +340,7 @@ export class Controller extends EventEmitter {
     } catch (err) {
       this.error = friendly(err);
     }
+    this._finishingId = null;
     this.finalizeProgress = null;
     this.stopwatch.reset();
     this._set('idle');
@@ -289,39 +348,51 @@ export class Controller extends EventEmitter {
   }
 
   /** Throws the current recording away. */
-  async discard() {
+  discard() {
     if (this.status === 'preparing' || this.status === 'countdown') {
       this._abort?.abort();
-      return;
+      return Promise.resolve();
     }
-    if (!this.isCapturing || !this.session) return;
-    const session = this.session;
-    this.session = null;
-    this.stopwatch.pause();
-    this._stopTicker();
-    this._set('stopping');
-    await this.engine.call('stop', {}, 10_000).catch(() => {});
-    await this.engine.call('release').catch(() => {});
-    this._releasePower();
-    this.windows.hideOverlay();
-    await session.discard().catch(() => {});
-    this._restoreWindows({ show: true });
-    this.stopwatch.reset();
-    this.markers = 0;
-    this._set('idle');
+    return this._exclusive(async () => {
+      if (!this.isCapturing || !this.session) return;
+      const session = this.session;
+      this.session = null;
+      this.stopwatch.pause();
+      this._stopTicker();
+      this._set('stopping');
+      await this.engine.call('stop', {}, 10_000).catch(() => {});
+      await this.engine.call('release').catch(() => {});
+      this._releasePower();
+      this._endOverlay();
+      await session.discard().catch(() => {});
+      this._restoreWindows({ show: true });
+      this.stopwatch.reset();
+      this.markers = 0;
+      this._set('idle');
+    });
   }
 
-  async togglePause() {
-    if (this.status === 'recording') {
-      await this.engine.call('pause');
-      this.stopwatch.pause();
-      this.session?.noteElapsed(this.stopwatch.elapsedMs);
-      this._set('paused');
-    } else if (this.status === 'paused') {
-      await this.engine.call('resume');
-      this.stopwatch.start();
-      this._set('recording');
-    }
+  togglePause() {
+    return this._exclusive(async () => {
+      if (this.status === 'recording') {
+        await this.engine.call('pause');
+        this.stopwatch.pause();
+        this.session?.noteElapsed(this.stopwatch.elapsedMs);
+        this._set('paused');
+      } else if (this.status === 'paused') {
+        // While paused it is safe to have our window open. Before rolling
+        // again, get it back out of the shot.
+        const s = this.settings.get();
+        const control = this.windows.control;
+        if (s.mode !== 'camera' && s.hideOnRecord && control && !control.isDestroyed() && control.isVisible()) {
+          await this.windows.hideControl();
+          await delay(200);
+        }
+        await this.engine.call('resume');
+        this.stopwatch.start();
+        this._set('recording');
+      }
+    });
   }
 
   /** @param {string} [label] */
@@ -333,9 +404,18 @@ export class Controller extends EventEmitter {
   }
 
   async toggleMic() {
+    // Muting only means something during a recording; a mute set while idle
+    // would be an invisible trap for the next take.
+    if (!this.isCapturing) return;
     this.micMuted = !this.micMuted;
-    if (this.isCapturing) await this.engine.call('setMicMuted', { muted: this.micMuted }).catch(() => {});
+    await this.engine.call('setMicMuted', { muted: this.micMuted }).catch(() => {});
     this.broadcast();
+  }
+
+  /** Leaves draw mode properly (releasing Escape) and removes the overlay. */
+  _endOverlay() {
+    if (this.windows.drawing) this.setDrawing(false);
+    this.windows.hideOverlay();
   }
 
   toggleCamera() {
@@ -433,8 +513,7 @@ export class Controller extends EventEmitter {
   _restoreWindows(opts = {}) {
     const control = this.windows.control;
     if (control && !control.isDestroyed() && this.capabilities.contentProtection) control.setContentProtection(false);
-    if (this.windows.drawing) this.setDrawing(false);
-    this.windows.hideOverlay();
+    this._endOverlay();
     if (opts.show || this._controlWasVisible) this.windows.showControl();
   }
 

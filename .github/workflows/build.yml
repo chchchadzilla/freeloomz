@@ -61,12 +61,18 @@ jobs:
 
       - name: Build (macOS, Apple silicon)
         if: runner.os == 'macOS'
-        run: npx electron-builder --mac --arm64 --publish ${{ env.PUBLISH }}
+        run: |
+          file node_modules/ffmpeg-static/ffmpeg | tee /dev/stderr | grep -q arm64
+          npx electron-builder --mac --arm64 --publish ${{ env.PUBLISH }}
       - name: Build (macOS, Intel)
         if: runner.os == 'macOS'
         run: |
-          # Swap in the Intel ffmpeg before packaging the Intel app.
+          # Swap in the Intel ffmpeg before packaging the Intel app. The
+          # installer skips the download when a binary is already there, so
+          # the Apple-silicon one has to be removed first.
+          rm -f node_modules/ffmpeg-static/ffmpeg
           npm_config_arch=x64 node node_modules/ffmpeg-static/install.js
+          file node_modules/ffmpeg-static/ffmpeg | tee /dev/stderr | grep -q x86_64
           npx electron-builder --mac --x64 --publish ${{ env.PUBLISH }}
       - name: Build (Windows)
         if: runner.os == 'Windows'

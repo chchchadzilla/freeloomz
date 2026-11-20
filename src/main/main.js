@@ -133,7 +133,11 @@ async function boot() {
         pending.set(id, { resolve, reject, timer });
         const send = () => win.webContents.send('engine:cmd', { id, name, args });
         if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
-        else send();
+        else if (win.webContents.isCrashed()) {
+          clearTimeout(timer);
+          pending.delete(id);
+          reject(new Error('The recorder is not running.'));
+        } else send();
       });
     },
   };
@@ -151,7 +155,23 @@ async function boot() {
     }
   });
 
-  const controller = new Controller({ settings, windows, library, engine, ensureRecordingsDir, capabilities });
+  /**
+   * macOS shows only the desktop picture to apps without screen-recording
+   * permission — a recording made like that looks fine until you watch it.
+   * Refuse to start instead, and say what to do.
+   * @param {string} mode
+   */
+  const preflight = async (mode) => {
+    if (!isMac || mode === 'camera') return null;
+    const status = systemPreferences.getMediaAccessStatus('screen');
+    if (status === 'granted' || status === 'unknown') return null;
+    // Asking for the list of screens makes macOS show its prompt the first time.
+    await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } }).catch(() => {});
+    if (systemPreferences.getMediaAccessStatus('screen') === 'granted') return null;
+    return 'macOS has not allowed Freeloomz to record the screen yet. Open System Settings → Privacy & Security → Screen & System Audio Recording, switch Freeloomz on, then quit and reopen Freeloomz.';
+  };
+
+  const controller = new Controller({ settings, windows, library, engine, ensureRecordingsDir, capabilities, preflight });
   ipcMain.on('engine:event', (event, payload) => {
     if (windows.isControl(event.sender)) controller.onEngineEvent(payload);
   });
@@ -167,15 +187,11 @@ async function boot() {
       entry.reject(new Error('The recorder stopped unexpectedly.'));
       pending.delete(id);
     }
-    const reload = () => {
-      if (!wc.isDestroyed()) wc.reload();
-    };
+    // Reload first: the stop below then talks to a live window instead of
+    // waiting out timeouts on a dead one. (The clock stops immediately.)
+    if (!wc.isDestroyed()) wc.reload();
     if (controller.isCapturing) {
-      controller
-        .stop({ reason: 'The recorder stopped unexpectedly. Everything up to that moment was saved.' })
-        .finally(reload);
-    } else {
-      reload();
+      controller.stop({ reason: 'The recorder stopped unexpectedly. Everything up to that moment was saved.' });
     }
   });
 
@@ -191,18 +207,31 @@ async function boot() {
 
   // Closing the lid or locking the screen mid-recording: pause rather than
   // record a black screen or a lock screen. Resuming is left to the user.
+  let pausedForAbsence = false;
   const pauseForAbsence = (why) => {
     if (controller.status !== 'recording') return;
     controller
       .togglePause()
       .then(() => {
-        controller.notice = `Paused because ${why}. Press resume when you are ready.`;
+        if (controller.status !== 'paused') return;
+        pausedForAbsence = true;
+        const message = `Recording paused because ${why}. Press resume when you are ready.`;
+        controller.notice = message;
+        controller.emit('warning', message);
         controller.broadcast();
       })
       .catch((err) => console.error('[main] could not pause:', err));
   };
+  // When they are back, put the paused recording in front of them: our
+  // window is normally hidden, and a silent pause would cost them the take.
+  const welcomeBack = () => {
+    if (pausedForAbsence && controller.status === 'paused') windows.showControl();
+    pausedForAbsence = false;
+  };
   powerMonitor.on('suspend', () => pauseForAbsence('the computer went to sleep'));
   powerMonitor.on('lock-screen', () => pauseForAbsence('the screen was locked'));
+  powerMonitor.on('resume', welcomeBack);
+  powerMonitor.on('unlock-screen', welcomeBack);
 
   // ------------------------------------------------------------ security
   const ses = session.defaultSession;
@@ -519,7 +548,7 @@ async function boot() {
 
   // Unfinished recordings (crash, power cut).
   const listOrphans = async () => {
-    const orphans = await findOrphans(getRecordingsDir(), controller.session?.journal.id ?? null);
+    const orphans = await findOrphans(getRecordingsDir(), controller.activeJournalId);
     return orphans.map((o) => ({
       id: o.journal.id,
       startedAt: o.journal.startedAt,
@@ -532,7 +561,7 @@ async function boot() {
     return listOrphans();
   });
   const findOrphan = async (id) => {
-    const orphans = await findOrphans(getRecordingsDir(), controller.session?.journal.id ?? null);
+    const orphans = await findOrphans(getRecordingsDir(), controller.activeJournalId);
     const match = orphans.find((o) => o.journal.id === id);
     if (!match) throw new Error('That recording is no longer there.');
     return match.journal;
@@ -610,14 +639,12 @@ async function boot() {
   });
   app.on('before-quit', (event) => {
     quitting = true;
-    if (controller.isCapturing) {
-      // Quit was requested mid-recording: save first, then quit.
-      event.preventDefault();
-      controller.stop().finally(() => app.quit());
-    } else if (controller.status === 'stopping' || controller.status === 'finalizing') {
-      event.preventDefault();
-      controller.once('saved', () => app.quit());
-    }
+    if (!controller.busy) return;
+    // Quit was requested mid-recording (or mid-save): finish first, then
+    // quit. stop() saves a recording in progress and cancels a countdown.
+    event.preventDefault();
+    controller.stop().catch((err) => console.error('[main] stop on quit failed:', err));
+    controller.whenIdle().then(() => app.quit());
   });
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
