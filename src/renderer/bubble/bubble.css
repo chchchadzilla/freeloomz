@@ -1,0 +1,212 @@
+/* The camera bubble. Everything outside .bubble is transparent. */
+
+html,
+body {
+  background: transparent;
+}
+
+.bubble {
+  position: absolute;
+  inset: var(--pad, 16px);
+  border-radius: 50%;
+  overflow: hidden;
+  background: #14161c;
+  cursor: grab;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.38),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  /* Arrives with a soft pop, leaves with a quick fade — like every other
+     surface in the app. */
+  animation: bubble-in var(--dur-3) var(--ease-spring) both;
+  transition:
+    border-radius var(--dur-2) var(--ease-out),
+    opacity var(--dur-1) var(--ease-in),
+    transform var(--dur-1) var(--ease-in),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+}
+
+body.leaving .bubble {
+  opacity: 0;
+  transform: scale(0.92);
+}
+
+/* Picked up: lifts off the page a little. */
+body.dragging .bubble {
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.45),
+    0 4px 10px rgba(0, 0, 0, 0.32);
+}
+
+body.flat .bubble {
+  box-shadow: none; /* no room for a shadow when the window is cut to shape */
+}
+
+body.rounded .bubble {
+  border-radius: 18%;
+}
+
+body.dragging .bubble {
+  cursor: grabbing;
+}
+
+body.wayland .bubble {
+  -webkit-app-region: drag;
+}
+
+/* The ring is drawn inside the shape so it survives window shaping. */
+.bubble::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 3px solid rgba(255, 255, 255, 0.94);
+  pointer-events: none;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--dur-3) var(--ease-out),
+    filter var(--dur-3) var(--ease-out);
+}
+
+/* The picture fades up once the camera is actually delivering frames. */
+body.live video {
+  opacity: 1;
+}
+
+body.mirror video {
+  transform: scaleX(-1);
+}
+
+body.is-paused video {
+  filter: grayscale(1) brightness(0.55);
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14%;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--muted);
+  background: radial-gradient(circle at 30% 25%, #2a2f3b, #14161c 70%);
+  animation: fade-in var(--dur-3) var(--ease-out);
+}
+
+.placeholder svg.icon {
+  width: 34%;
+  height: auto;
+  max-width: 72px;
+  opacity: 0.7;
+}
+
+.paused {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(11, 12, 16, 0.75);
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  animation: pop-in var(--dur-2) var(--ease-spring);
+}
+
+.controls {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  transform: translate(-50%, 6px);
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(11, 12, 16, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+  -webkit-app-region: no-drag;
+}
+
+/* Shown only after the pointer has rested on the bubble for a moment, so
+   merely passing over it never flashes buttons into your recording. */
+body.hover .controls {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+body.dragging .controls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.controls button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+
+.controls button:active {
+  transform: scale(0.9);
+}
+
+.controls button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.controls .rec i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 0 10px rgba(255, 77, 94, 0.7);
+  transition: border-radius var(--dur-2) var(--ease-out);
+}
+
+body.capturing .controls .rec i {
+  border-radius: 3px;
+}
+
+.controls svg.icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}

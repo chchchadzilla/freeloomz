@@ -1,0 +1,523 @@
+/* Freeloomz design system — shared by every window.
+ *
+ * Depth is built from the same four ingredients everywhere:
+ *   1. a surface that is slightly lighter at the top (light comes from above),
+ *   2. a 1px inner highlight on the top edge,
+ *   3. a hairline border,
+ *   4. a soft shadow underneath, larger the higher the thing floats.
+ * Motion uses three durations and three easings, defined once below (and
+ * mirrored in motion.js for scripted transitions).
+ */
+
+:root {
+  /* colour */
+  --ink: #0b0c10;
+  --ink-raised: #14161c;
+  --surface: rgba(255, 255, 255, 0.045);
+  --surface-hover: rgba(255, 255, 255, 0.085);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --text: #f2f3f5;
+  --muted: #979eab;
+  --faint: #636a77;
+  --lime: #c6ff3d;
+  --lime-soft: rgba(198, 255, 61, 0.12);
+  --coral: #ff4d5e;
+  --coral-soft: rgba(255, 77, 94, 0.14);
+  --amber: #ffc24b;
+
+  /* shape */
+  --radius: 16px;
+  --radius-sm: 10px;
+
+  /* motion */
+  --dur-1: 130ms; /* hover, press, small state changes */
+  --dur-2: 220ms; /* things arriving, toggles, sliding highlights */
+  --dur-3: 380ms; /* large surfaces, celebratory moments */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  /* depth */
+  --card-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.032));
+  --card-fill-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.055));
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.075);
+  --shadow-1: 0 1px 1px rgba(0, 0, 0, 0.35), 0 6px 16px -8px rgba(0, 0, 0, 0.55);
+  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.3), 0 14px 34px -14px rgba(0, 0, 0, 0.7);
+  --shadow-3: 0 4px 10px rgba(0, 0, 0, 0.35), 0 30px 70px -24px rgba(0, 0, 0, 0.85);
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', sans-serif;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font: 13px/1.45 var(--font);
+  color: var(--text);
+  background: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Scrollbars: a slim rounded thumb that only shows up on hover. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0) padding-box;
+  transition: background var(--dur-2) var(--ease-out);
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3) padding-box;
+}
+
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
+  display: none;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+svg.icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* -------------------------------------------------------------- keyframes */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A band of light travelling across a surface. */
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes sheen {
+  from {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+
+/* --------------------------------------------------------------- wordmark */
+
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.wordmark i {
+  display: inline-block;
+  width: 0.56em;
+  height: 0.56em;
+  border-radius: 50%;
+}
+
+.wordmark i.ring {
+  border: 0.145em solid var(--lime);
+  margin: 0 0.03em 0 0.035em;
+}
+
+.wordmark i.dot {
+  background: var(--coral);
+  margin-right: 0.025em;
+  box-shadow: 0 0 0.5em rgba(255, 77, 94, 0.55);
+}
+
+/* ------------------------------------------------------------------ card */
+
+.card {
+  border-radius: var(--radius);
+  background: var(--card-fill);
+  border: 1px solid var(--line);
+  box-shadow: var(--edge), var(--shadow-1);
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--card-fill);
+  border: 1px solid var(--line);
+  box-shadow: var(--edge), var(--shadow-1);
+  font-weight: 600;
+  font-size: 12.5px;
+  white-space: nowrap;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--card-fill-hover);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--edge), var(--shadow-2);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+  box-shadow: var(--edge), var(--shadow-1);
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #d6ff6b, #b9f22c);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #0b0c10;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 1px rgba(0, 0, 0, 0.35),
+    0 10px 26px -10px rgba(198, 255, 61, 0.55);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e0ff85, #c6ff3d);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 14px 34px -10px rgba(198, 255, 61, 0.7);
+}
+
+/* A glint that crosses the primary button when you reach for it. */
+.btn.primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.btn.primary:hover:not(:disabled)::after {
+  animation: sheen 0.7s var(--ease-out);
+}
+
+.btn.danger {
+  color: var(--coral);
+}
+
+.btn.small {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+
+.btn svg.icon {
+  width: 15px;
+  height: 15px;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--muted);
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.link {
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+  transition: color var(--dur-1) var(--ease-out);
+}
+
+.link:hover {
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------- switch */
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+  transition:
+    background var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fff, #dfe2e8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition:
+    transform var(--dur-2) var(--ease-spring),
+    background var(--dur-2) var(--ease-out),
+    width var(--dur-1) var(--ease-out);
+}
+
+.switch:active:not(:disabled)::after {
+  width: 19px; /* the thumb squashes a little under your finger */
+}
+
+.switch[aria-checked='true'] {
+  background: linear-gradient(180deg, #b9f22c, #d0ff58);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.25),
+    0 0 14px -2px rgba(198, 255, 61, 0.45);
+}
+
+.switch[aria-checked='true']::after {
+  transform: translateX(16px);
+  background: linear-gradient(180deg, #1b1e26, #0b0c10);
+}
+
+.switch[aria-checked='true']:active:not(:disabled)::after {
+  transform: translateX(13px);
+}
+
+/* ---------------------------------------------------------------- select */
+
+.select {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+.select select {
+  appearance: none;
+  width: 100%;
+  height: 32px;
+  padding: 0 26px 0 0;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.select select:disabled {
+  cursor: default;
+}
+
+.select select option {
+  background: #1b1e26;
+  color: var(--text);
+}
+
+.select::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.6px solid var(--muted);
+  border-bottom: 1.6px solid var(--muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+  transition: border-color var(--dur-1) var(--ease-out);
+}
+
+.select:hover::after {
+  border-color: var(--text);
+}
+
+.select.static::after {
+  display: none;
+}
+
+/* ------------------------------------------------------------- segmented */
+
+.segmented {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* The highlight is one element that slides between options. */
+.segmented .thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff, #dfe2e8);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 4px 12px -4px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dur-2) var(--ease-out),
+    width var(--dur-2) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
+}
+
+.segmented button {
+  position: relative;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color var(--dur-2) var(--ease-out);
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented button[aria-pressed='true'] {
+  color: #0b0c10;
+}
+
+/* -------------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

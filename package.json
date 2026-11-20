@@ -1,0 +1,108 @@
+{
+  "name": "freeloomz",
+  "productName": "Freeloomz",
+  "version": "0.1.0",
+  "description": "Free, open-source screen + webcam recorder. No time limits, no accounts, no watermarks.",
+  "license": "MIT",
+  "author": "Chad Keith",
+  "type": "module",
+  "main": "src/main/main.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/unit/*.test.js\"",
+    "test:e2e": "node --test --test-concurrency=1 \"test/e2e/*.e2e.mjs\"",
+    "test:soak": "node test/e2e/soak.mjs",
+    "typecheck": "tsc -p jsconfig.json",
+    "icons": "node scripts/make-icons.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.0",
+    "electron": "45.4.1",
+    "electron-builder": "^26.18.0",
+    "playwright-core": "^1.65.1",
+    "typescript": "^5.9.0"
+  },
+  "build": {
+    "appId": "com.freeloomz.app",
+    "productName": "Freeloomz",
+    "copyright": "Copyright © 2026 Chad Keith",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "LICENSE"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.video",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSCameraUsageDescription": "Freeloomz shows your webcam in a bubble on top of your screen recordings.",
+        "NSMicrophoneUsageDescription": "Freeloomz records your microphone as narration for your screen recordings.",
+        "NSAudioCaptureUsageDescription": "Freeloomz can include the sound your computer is playing in your screen recordings."
+      }
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Freeloomz-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icon.png",
+      "synopsis": "Screen + webcam recorder with no time limits"
+    },
+    "artifactName": "Freeloomz-${version}-${os}-${arch}.${ext}",
+    "dmg": {
+      "title": "Freeloomz ${version}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "chchchadzilla",
+      "repo": "Freeloomz",
+      "releaseType": "draft"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chchchadzilla/Freeloomz.git"
+  },
+  "homepage": "https://github.com/chchchadzilla/Freeloomz",
+  "keywords": [
+    "screen-recorder",
+    "webcam",
+    "screencast",
+    "tutorial",
+    "electron",
+    "open-source"
+  ]
+}

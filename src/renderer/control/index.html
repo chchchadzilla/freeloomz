@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' file: data:; media-src 'self' file: blob:"
+    />
+    <title>Freeloomz</title>
+    <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="control.css" />
+  </head>
+  <body>
+    <header class="titlebar">
+      <span class="wordmark" aria-label="Freeloomz">freel<i class="ring"></i><i class="dot"></i>mz</span>
+      <span class="titlebar-status" id="titlebarStatus" hidden></span>
+    </header>
+
+    <main>
+      <!-- ============================================================ RECORD -->
+      <section class="view" id="view-record">
+        <div class="banners" id="banners"></div>
+
+        <!-- idle: set up and go -->
+        <div class="stage" id="stage-idle">
+          <div class="modes" role="radiogroup" aria-label="What to record">
+            <button class="mode" role="radio" data-mode="screen+camera">
+              <svg viewBox="0 0 64 44" aria-hidden="true">
+                <rect class="scr" x="3" y="3" width="58" height="38" rx="6" />
+                <circle class="cam" cx="15" cy="30" r="7" />
+              </svg>
+              <span>Screen + camera</span>
+            </button>
+            <button class="mode" role="radio" data-mode="screen">
+              <svg viewBox="0 0 64 44" aria-hidden="true">
+                <rect class="scr" x="3" y="3" width="58" height="38" rx="6" />
+                <path class="scr" d="M14 15h22M14 22h36M14 29h28" />
+              </svg>
+              <span>Screen only</span>
+            </button>
+            <button class="mode" role="radio" data-mode="camera">
+              <svg viewBox="0 0 64 44" aria-hidden="true">
+                <circle class="cam" cx="32" cy="22" r="17" />
+              </svg>
+              <span>Camera only</span>
+            </button>
+          </div>
+
+          <div class="card sources">
+            <div class="row" id="row-display">
+              <svg class="icon"><use href="#i-monitor" /></svg>
+              <label class="select" id="displayWrap"><select id="displaySelect" aria-label="Screen to record"></select></label>
+            </div>
+            <div class="row" id="row-camera">
+              <svg class="icon"><use href="#i-camera" /></svg>
+              <label class="select"><select id="cameraSelect" aria-label="Camera"></select></label>
+              <button class="switch" id="cameraSwitch" role="switch" aria-label="Camera bubble"></button>
+            </div>
+            <div class="row" id="row-mic">
+              <svg class="icon"><use href="#i-mic" /></svg>
+              <label class="select"><select id="micSelect" aria-label="Microphone"></select></label>
+              <div class="meter" id="micMeter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+              <button class="switch" id="micSwitch" role="switch" aria-label="Microphone"></button>
+            </div>
+            <div class="row" id="row-system">
+              <svg class="icon"><use href="#i-speaker" /></svg>
+              <span class="row-label">Computer sound</span>
+              <button class="switch" id="systemSwitch" role="switch" aria-label="Record computer sound"></button>
+            </div>
+          </div>
+
+          <div class="shutter-area">
+            <button class="shutter" id="recordButton" aria-label="Start recording"><span></span></button>
+            <div class="shutter-title" id="recordTitle">Start recording</div>
+            <div class="shutter-hint" id="recordHint"></div>
+          </div>
+          <button class="summary" id="summaryButton" title="Change in Settings"></button>
+        </div>
+
+        <!-- recording / paused -->
+        <div class="stage live" id="stage-live" hidden>
+          <div class="live-pill" id="livePill"><i></i><span id="livePillText">Recording</span></div>
+          <div class="timer" id="timer">00:00</div>
+          <div class="live-meta" id="liveMeta"></div>
+          <div class="live-controls">
+            <button class="round" id="pauseButton" title="Pause"><svg class="icon"><use href="#i-pause" /></svg></button>
+            <button class="round stop" id="stopButton" title="Stop and save"><span></span></button>
+            <button class="round" id="markerButton" title="Add chapter marker">
+              <svg class="icon"><use href="#i-bookmark" /></svg><b id="markerCount" hidden>0</b>
+            </button>
+          </div>
+          <div class="chips">
+            <button class="chip" id="micChip"><svg class="icon"><use href="#i-mic" /></svg><span>Mic on</span></button>
+            <button class="chip" id="cameraChip"><svg class="icon"><use href="#i-camera" /></svg><span>Camera</span></button>
+            <button class="chip" id="drawChip"><svg class="icon"><use href="#i-pen" /></svg><span>Draw</span></button>
+          </div>
+          <button class="link" id="discardButton">Discard this recording</button>
+        </div>
+
+        <!-- starting / saving -->
+        <div class="stage busy" id="stage-busy" hidden>
+          <div class="progress-ring" id="busyRing"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" /><circle class="bar" id="busyBar" cx="40" cy="40" r="34" /></svg></div>
+          <div class="busy-title" id="busyTitle">Getting ready…</div>
+          <div class="busy-sub" id="busySub"></div>
+          <button class="btn small" id="cancelButton" hidden>Cancel</button>
+        </div>
+
+        <!-- just finished -->
+        <div class="stage wrap" id="stage-wrap" hidden>
+          <div class="wrap-kicker">That’s a wrap</div>
+          <button class="wrap-thumb" id="wrapThumb" title="Play">
+            <img id="wrapImage" alt="" />
+            <span class="play"><svg class="icon"><use href="#i-play" /></svg></span>
+            <span class="duration" id="wrapDuration"></span>
+          </button>
+          <input class="name-input" id="wrapName" spellcheck="false" aria-label="Recording name" />
+          <div class="wrap-meta" id="wrapMeta"></div>
+          <div class="wrap-actions">
+            <button class="btn primary" id="wrapReveal"><svg class="icon"><use href="#i-folder" /></svg>Show in folder</button>
+            <button class="btn" id="wrapOpen"><svg class="icon"><use href="#i-scissors" /></svg>Trim &amp; export</button>
+          </div>
+          <button class="btn" id="wrapChapters" hidden><svg class="icon"><use href="#i-bookmark" /></svg><span>Copy chapters</span></button>
+          <button class="link" id="wrapAgain">Record another</button>
+        </div>
+      </section>
+
+      <!-- =========================================================== LIBRARY -->
+      <section class="view" id="view-library" hidden>
+        <div class="view-head">
+          <h1>Library</h1>
+          <button class="btn small" id="openFolderButton"><svg class="icon"><use href="#i-folder" /></svg>Open folder</button>
+        </div>
+        <div class="library-list" id="libraryList"></div>
+        <div class="empty" id="libraryEmpty" hidden>
+          <div class="empty-mark"><i class="ring"></i><i class="dot"></i></div>
+          <b>Nothing here yet</b>
+          <span>Your recordings show up here the moment you stop.</span>
+        </div>
+      </section>
+
+      <!-- ========================================================== SETTINGS -->
+      <section class="view" id="view-settings" hidden>
+        <div class="view-head"><h1>Settings</h1></div>
+
+        <h2>Video</h2>
+        <div class="card">
+          <div class="row"><span class="row-label">Resolution</span><div class="segmented" data-setting="resolution" data-type="number"><button data-value="720">720p</button><button data-value="1080">1080p</button><button data-value="1440">1440p</button><button data-value="2160">4K</button><button data-value="0">Native</button></div></div>
+          <div class="row"><span class="row-label">Frame rate</span><div class="segmented" data-setting="fps" data-type="number"><button data-value="15">15</button><button data-value="30">30</button><button data-value="60">60</button></div></div>
+          <div class="row"><span class="row-label">Quality</span><div class="segmented" data-setting="quality"><button data-value="standard">Standard</button><button data-value="high">High</button><button data-value="max">Max</button></div></div>
+        </div>
+
+        <h2>Recording</h2>
+        <div class="card">
+          <div class="row"><span class="row-label">Countdown</span><div class="segmented" data-setting="countdown" data-type="number"><button data-value="0">Off</button><button data-value="3">3s</button><button data-value="5">5s</button><button data-value="10">10s</button></div></div>
+          <div class="row" id="row-highlight"><span class="row-label">Highlight my cursor<small id="highlightNote">A soft halo that makes the pointer easy to follow</small></span><button class="switch" role="switch" data-setting="cursorHighlight"></button></div>
+          <div class="row"><span class="row-label">Hide this window while recording<small>Control everything from shortcuts, the tray or the bubble</small></span><button class="switch" role="switch" data-setting="hideOnRecord"></button></div>
+        </div>
+
+        <h2>Microphone</h2>
+        <div class="card">
+          <div class="row"><span class="row-label">Noise suppression</span><button class="switch" role="switch" data-setting="noiseSuppression"></button></div>
+          <div class="row"><span class="row-label">Echo cancellation</span><button class="switch" role="switch" data-setting="echoCancellation"></button></div>
+          <div class="row"><span class="row-label">Automatic volume</span><button class="switch" role="switch" data-setting="autoGainControl"></button></div>
+        </div>
+
+        <h2>Camera bubble</h2>
+        <div class="card">
+          <div class="row"><span class="row-label">Size</span><div class="segmented" data-setting="bubble.size" data-type="number"><button data-value="160">Small</button><button data-value="240">Medium</button><button data-value="360">Large</button></div></div>
+          <div class="row"><span class="row-label">Shape</span><div class="segmented" data-setting="bubble.shape"><button data-value="circle">Circle</button><button data-value="rounded">Rounded</button></div></div>
+          <div class="row"><span class="row-label">Mirror my video</span><button class="switch" role="switch" data-setting="bubble.mirror"></button></div>
+          <div class="row"><span class="row-label">Snap to corners</span><button class="switch" role="switch" data-setting="bubble.snap"></button></div>
+        </div>
+
+        <h2>Files</h2>
+        <div class="card">
+          <div class="row"><span class="row-label">Save recordings to<small id="folderPath"></small></span><button class="btn small" id="changeFolderButton">Change…</button></div>
+        </div>
+
+        <h2>Shortcuts</h2>
+        <div class="card" id="shortcutList"></div>
+        <p class="footnote">Shortcuts work from any app. Click one to change it; press Backspace to turn it off.</p>
+
+        <div class="about">
+          <span class="wordmark">freel<i class="ring"></i><i class="dot"></i>mz</span>
+          <span id="aboutVersion"></span>
+          <span>No time limits. No logins. No watermark. Free and open source.</span>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabs" id="tabs">
+      <button data-view="record" aria-pressed="true"><svg class="icon"><use href="#i-record" /></svg>Record</button>
+      <button data-view="library"><svg class="icon"><use href="#i-library" /></svg>Library</button>
+      <button data-view="settings"><svg class="icon"><use href="#i-settings" /></svg>Settings</button>
+    </nav>
+
+    <!-- ============================================================ PLAYER -->
+    <div class="sheet" id="player" hidden>
+      <div class="sheet-head">
+        <button class="icon-btn" id="playerClose" title="Back"><svg class="icon"><use href="#i-back" /></svg></button>
+        <input class="name-input" id="playerName" spellcheck="false" aria-label="Recording name" />
+        <button class="icon-btn" id="playerReveal" title="Show in folder"><svg class="icon"><use href="#i-folder" /></svg></button>
+        <button class="icon-btn" id="playerTrash" title="Move to trash"><svg class="icon"><use href="#i-trash" /></svg></button>
+      </div>
+      <div class="sheet-body">
+        <video id="playerVideo" controls preload="metadata"></video>
+        <img id="playerGif" alt="" hidden />
+        <div class="player-meta" id="playerMeta"></div>
+
+        <div id="trimPanel">
+          <h2>Trim</h2>
+          <div class="card trim">
+            <div class="trim-track" id="trimTrack">
+              <div class="trim-range" id="trimRange"></div>
+              <input type="range" id="trimStart" min="0" max="1000" value="0" aria-label="Trim start" />
+              <input type="range" id="trimEnd" min="0" max="1000" value="1000" aria-label="Trim end" />
+            </div>
+            <div class="trim-row">
+              <button class="btn small" id="trimSetStart">Start here</button>
+              <span class="trim-times" id="trimTimes"></span>
+              <button class="btn small" id="trimSetEnd">End here</button>
+            </div>
+          </div>
+          <div class="export-actions">
+            <button class="btn primary" id="exportTrim"><svg class="icon"><use href="#i-scissors" /></svg>Save trimmed copy</button>
+            <button class="btn" id="exportGif">Save as GIF</button>
+          </div>
+          <div class="export-progress" id="exportProgress" hidden>
+            <div class="bar"><i id="exportBar"></i></div>
+            <span id="exportLabel">Exporting…</span>
+            <button class="link" id="exportCancel">Cancel</button>
+          </div>
+        </div>
+
+        <div id="chapterPanel" hidden>
+          <h2>Chapters</h2>
+          <div class="card" id="chapterList"></div>
+          <button class="btn small" id="copyChapters"><svg class="icon"><use href="#i-bookmark" /></svg><span>Copy for YouTube</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <!-- icon sprite -->
+    <svg class="sprite" width="0" height="0" aria-hidden="true">
+      <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="3" /><path d="m15 10.5 5-3v9l-5-3" /></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></symbol>
+      <symbol id="i-mic-off" viewBox="0 0 24 24"><path d="M15 9.5V6a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 4.6 2.6M5.5 11a6.5 6.5 0 0 0 10.6 5M18.5 11c0 .9-.2 1.8-.5 2.6M12 17.5V21M4 4l16 16" /></symbol>
+      <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10H4zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" /></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z" /></symbol>
+      <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1zM14 7l3 3" /></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></symbol>
+      <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6.5" cy="7" r="2.5" /><circle cx="6.5" cy="17" r="2.5" /><path d="M8.6 8.5 20 17M8.6 15.5 20 7" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5" /></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5.5 8 12l6.5 6.5" /></symbol>
+      <symbol id="i-record" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none" /></symbol>
+      <symbol id="i-library" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="3" /><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none" /></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+    </svg>
+
+    <script type="module" src="control.js"></script>
+  </body>
+</html>

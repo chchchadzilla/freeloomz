@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <title>Freeloomz countdown</title>
+    <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="countdown.css" />
+  </head>
+  <body>
+    <div class="disc">
+      <svg viewBox="0 0 240 240" aria-hidden="true">
+        <circle cx="120" cy="120" r="108" />
+        <circle class="sweep" id="sweep" cx="120" cy="120" r="108" />
+      </svg>
+      <div class="digit" id="digit"></div>
+    </div>
+    <script type="module" src="countdown.js"></script>
+  </body>
+</html>

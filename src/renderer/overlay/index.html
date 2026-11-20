@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <title>Freeloomz overlay</title>
+    <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="overlay.css" />
+  </head>
+  <body>
+    <canvas id="ink"></canvas>
+    <div class="halo" id="halo" hidden></div>
+    <div class="toolbar" id="toolbar" hidden>
+      <div class="colors" id="colors"></div>
+      <span class="sep"></span>
+      <button id="undoButton" title="Undo last stroke">Undo</button>
+      <button id="clearButton" title="Clear everything">Clear</button>
+      <button id="doneButton" class="done" title="Stop drawing (Esc)">Done</button>
+    </div>
+    <script type="module" src="overlay.js"></script>
+  </body>
+</html>

@@ -1,0 +1,124 @@
+/* Full-display transparent layer: cursor halo + drawing. */
+
+html,
+body {
+  background: transparent;
+}
+
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  transition: opacity var(--dur-2) var(--ease-in);
+}
+
+/* Ink fades away when you finish drawing instead of vanishing. */
+canvas.fading {
+  opacity: 0;
+}
+
+body.drawing {
+  cursor: crosshair;
+}
+
+.halo {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border-radius: 50%;
+  background: rgba(255, 214, 10, 0.3);
+  border: 2px solid rgba(255, 214, 10, 0.65);
+  box-shadow: 0 0 18px rgba(255, 214, 10, 0.35);
+  pointer-events: none;
+  will-change: transform;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.halo.on {
+  opacity: 1;
+}
+
+.toolbar {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px 7px 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(30, 33, 42, 0.94), rgba(11, 12, 16, 0.94));
+  border: 1px solid var(--line-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 40px rgba(0, 0, 0, 0.45);
+  cursor: default;
+  animation: toolbar-in var(--dur-3) var(--ease-spring);
+}
+
+@keyframes toolbar-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-14px) scale(0.96);
+  }
+}
+
+.colors {
+  display: flex;
+  gap: 7px;
+}
+
+.colors button {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--c);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform var(--dur-1) var(--ease-spring);
+}
+
+.colors button:hover {
+  transform: scale(1.15);
+}
+
+.colors button[aria-pressed='true'] {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(11, 12, 16, 0.9) inset;
+}
+
+.sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--line-strong);
+}
+
+.toolbar > button {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition:
+    color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out);
+}
+
+.toolbar > button:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.toolbar > button.done {
+  background: var(--lime);
+  color: #0b0c10;
+}
