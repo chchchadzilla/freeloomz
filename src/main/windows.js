@@ -139,7 +139,8 @@ export class WindowManager {
         ? { trafficLightPosition: { x: 16, y: 17 } }
         : { titleBarOverlay: { color: '#00000000', symbolColor: '#9aa0ac', height: 48 } }),
       autoHideMenuBar: true,
-      ...(isLinux ? { icon: path.join(here, '../../assets/icon.png') } : {}),
+      // Linux and Windows take the window/taskbar icon from here; macOS uses the app bundle's.
+      ...(isMac ? {} : { icon: path.join(here, `../../assets/icon.${isLinux ? 'png' : 'ico'}`) }),
       webPreferences: webPreferences(),
     });
     win.once('ready-to-show', () => win.show());

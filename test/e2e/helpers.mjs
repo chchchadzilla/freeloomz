@@ -53,8 +53,11 @@ export async function launchApp({ fakeDevices = true, settings, name }) {
 
   // Set FREELOOMZ_APP_BINARY to test a packaged build instead of the source
   // tree (e.g. dist/linux-unpacked/freeloomz).
+  // FREELOOMZ_APP_DIR additionally points that binary at an app folder — the
+  // layout `npm install -g` produces (stock Electron + the app's own folder).
   const binary = process.env.FREELOOMZ_APP_BINARY;
-  const args = binary ? ['--no-sandbox'] : ['.', '--no-sandbox'];
+  const appDir = process.env.FREELOOMZ_APP_DIR;
+  const args = appDir ? [appDir, '--no-sandbox'] : binary ? ['--no-sandbox'] : ['.', '--no-sandbox'];
   // Chromium's fake devices give us a camera and a microphone on machines
   // that have neither. (They also replace the screen with a test pattern,
   // which is why real screen capture gets its own test without them.)

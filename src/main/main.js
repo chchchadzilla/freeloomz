@@ -34,6 +34,60 @@ import { discardOrphan, finalizeRecording, findOrphans } from './recording-sessi
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 const E2E = Boolean(process.env.FREELOOMZ_E2E);
+const APP_ID = 'com.freeloomz.app';
+
+// Gives the app its own identity on the Windows taskbar (grouping, icon,
+// notifications) even when it runs on a stock Electron runtime.
+if (isWin) app.setAppUserModelId(APP_ID);
+
+/**
+ * Installed with `npm install -g`, Freeloomz is first started from a
+ * terminal. On Windows, add Start-menu and Desktop shortcuts then, so that
+ * from that point on it opens like any other app. Redone only when the app
+ * or its runtime has moved (after an update).
+ */
+function ensureWindowsShortcuts() {
+  if (!isWin || !process.defaultApp || !process.env.FREELOOMZ_LAUNCHER || E2E) return;
+  try {
+    const appDir = app.getAppPath();
+    const marker = path.join(app.getPath('userData'), 'shortcuts.json');
+    const wanted = { target: process.execPath, appDir };
+    let have = null;
+    try {
+      have = JSON.parse(fs.readFileSync(marker, 'utf8'));
+    } catch {
+      /* first run */
+    }
+    if (have && have.target === wanted.target && have.appDir === wanted.appDir) return;
+    const options = {
+      target: process.execPath,
+      args: `"${appDir}"`,
+      cwd: appDir,
+      description: 'Freeloomz - screen and camera recorder',
+      icon: path.join(appDir, 'assets', 'icon.ico'),
+      iconIndex: 0,
+      appUserModelId: APP_ID,
+    };
+    const places = [
+      path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Freeloomz.lnk'),
+      path.join(app.getPath('desktop'), 'Freeloomz.lnk'),
+    ];
+    let created = false;
+    for (const place of places) {
+      try {
+        created = shell.writeShortcutLink(place, options) || created;
+      } catch (err) {
+        console.warn('[main] could not create shortcut', place, err);
+      }
+    }
+    if (created) {
+      fs.mkdirSync(path.dirname(marker), { recursive: true });
+      fs.writeFileSync(marker, JSON.stringify(wanted));
+    }
+  } catch (err) {
+    console.warn('[main] shortcut setup failed:', err); // never worth blocking the app for
+  }
+}
 
 // Recording can be started from a global shortcut or the tray, i.e. without
 // a click inside a window — audio must be allowed to start regardless.
@@ -656,6 +710,7 @@ async function boot() {
 
   windows.createControl();
   windows.syncBubble();
+  ensureWindowsShortcuts();
 
   if (E2E) {
     /** @type {any} */ (globalThis).__freeloomz = { controller, windows, settings, library, getRecordingsDir };

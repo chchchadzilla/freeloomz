@@ -7,6 +7,9 @@
   "author": "Chad Keith",
   "type": "module",
   "main": "src/main/main.js",
+  "bin": {
+    "freeloomz": "bin/freeloomz.js"
+  },
   "engines": {
     "node": ">=22.12.0"
   },
@@ -66,7 +69,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "build/icon.png"
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -84,12 +87,6 @@
     "artifactName": "Freeloomz-${version}-${os}-${arch}.${ext}",
     "dmg": {
       "title": "Freeloomz ${version}"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "chchchadzilla",
-      "repo": "Freeloomz",
-      "releaseType": "draft"
     }
   },
   "repository": {

@@ -82,6 +82,31 @@ const jobs = [
   { file: 'docs/wordmark-light.png', svg: wordmark('#0b0c10'), element: '#wm', scale: 2 },
 ];
 
+/**
+ * Packs PNG images into a Windows .ico (Vista+ icons may hold PNGs as-is).
+ * @param {{ size: number, png: Buffer }[]} images
+ */
+function packIco(images) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(images.length, 4);
+  const entries = [];
+  let offset = 6 + 16 * images.length;
+  for (const { size, png } of images) {
+    const entry = Buffer.alloc(16);
+    entry.writeUInt8(size >= 256 ? 0 : size, 0); // width  (0 means 256)
+    entry.writeUInt8(size >= 256 ? 0 : size, 1); // height
+    entry.writeUInt16LE(1, 4); // colour planes
+    entry.writeUInt16LE(32, 6); // bits per pixel
+    entry.writeUInt32LE(png.length, 8);
+    entry.writeUInt32LE(offset, 12);
+    entries.push(entry);
+    offset += png.length;
+  }
+  return Buffer.concat([header, ...entries, ...images.map((i) => i.png)]);
+}
+
 const executablePath = process.env.CHROME_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 const browser = await chromium.launch({ executablePath });
 try {
@@ -97,6 +122,17 @@ try {
     await context.close();
     console.log('wrote', job.file);
   }
+  // Windows icon: the app icon at every size Windows asks for.
+  const icoImages = [];
+  for (const size of [16, 24, 32, 48, 64, 128, 256]) {
+    const context = await browser.newContext({ viewport: { width: 1024, height: 1024 }, deviceScaleFactor: size / 1024 });
+    const page = await context.newPage();
+    await page.setContent(`<html><body style="margin:0;background:transparent">${appIcon}</body></html>`);
+    icoImages.push({ size, png: await page.screenshot({ omitBackground: true, clip: { x: 0, y: 0, width: 1024, height: 1024 } }) });
+    await context.close();
+  }
+  fs.writeFileSync(path.join(root, 'assets/icon.ico'), packIco(icoImages));
+  console.log('wrote assets/icon.ico');
 } finally {
   await browser.close();
 }

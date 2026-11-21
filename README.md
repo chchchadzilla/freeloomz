@@ -55,21 +55,24 @@ It runs on **macOS, Windows and Linux**.
 
 ## Install
 
-Download the installer for your computer from the [Releases page](https://github.com/chchchadzilla/Freeloomz/releases):
+You need [Node.js](https://nodejs.org) 22 or newer (`node -v` tells you). Then, in a terminal:
 
-| Your computer | File |
-| --- | --- |
-| Mac with Apple silicon (M1 or later) | `Freeloomz-…-mac-arm64.dmg` |
-| Mac with an Intel processor | `Freeloomz-…-mac-x64.dmg` |
-| Windows 10 / 11 | `Freeloomz-Setup-….exe` |
-| Linux | `Freeloomz-…-linux-x86_64.AppImage` |
+```bash
+npm install -g https://github.com/chchchadzilla/Freeloomz/archive/refs/heads/main.tar.gz
+```
 
-Freeloomz is not yet signed with a paid Apple or Microsoft developer certificate, so your computer will ask you to confirm the first time:
+```bash
+freeloomz
+```
 
-- **macOS** — open the app, and when macOS blocks it go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. macOS then asks permission for screen recording, camera and microphone; after allowing screen recording it will ask you to reopen the app.
-  Until the app is signed, macOS may ask for those permissions again after you install an update.
-- **Windows** — on the blue "Windows protected your PC" screen click **More info → Run anyway**. If there is no **Run anyway** button (some PCs are set up to hide it), right-click the downloaded file → **Properties** → tick **Unblock** at the bottom → **OK**, then open it again.
-- **Linux** — make the AppImage executable (`chmod +x Freeloomz-*.AppImage`) and run it.
+The first start downloads the runtime the app runs on, once (about 110 MB). On Windows it also adds Freeloomz to your Start menu and Desktop, so from then on you open it like any other app. On macOS and Linux, run `freeloomz` whenever you want it.
+
+- **To update**, run the install command again.
+- **No Node.js yet?** On Windows: `winget install OpenJS.NodeJS.LTS`, then open a new terminal. On a Mac: `brew install node`.
+- **macOS** asks permission for screen recording, camera and microphone the first time; after allowing screen recording it will ask you to reopen the app. (The permission shows up under the name "Electron", the runtime Freeloomz uses.)
+- **To remove it**: `npm uninstall -g freeloomz`, then delete the `Freeloomz` folder in `%LOCALAPPDATA%` (Windows), `~/Library/Application Support` (macOS) or `~/.local/share` (Linux), and the shortcuts. Your recordings are not touched.
+
+Why a command instead of a download? An installer that is not signed with a paid Apple or Microsoft certificate gets blocked or buried under warnings by Windows and macOS. Installing this way never triggers those, and it works the same on all three systems. Signed installers are on the roadmap.
 
 ## Using it
 
@@ -110,12 +113,6 @@ npm install
 
 ```bash
 npm start
-```
-
-To build an installer for the computer you're on:
-
-```bash
-npm run dist
 ```
 
 ### Tests
@@ -166,11 +163,9 @@ A few decisions worth knowing about:
 - **Recording uses H.264 where the system offers it**, so finishing a recording only has to re-wrap the video into an MP4 — a second or two, even for an hour of footage.
 - [ffmpeg](https://ffmpeg.org) (bundled via [`ffmpeg-static`](https://github.com/eugeneware/ffmpeg-static)) does the finishing, trimming, thumbnails and GIFs.
 
-### Releasing
+### Building an installer
 
-Pushing a tag such as `v0.1.0` makes GitHub Actions build the installers for all three systems and attach them to a draft release. Running the **Build installers** workflow by hand produces the same files as downloadable artifacts.
-
-To get rid of the first-run warnings, sign the builds: set `CSC_LINK` / `CSC_KEY_PASSWORD` (and Apple notarization credentials) as repository secrets, remove `"identity": "-"` and `"hardenedRuntime": false` from the `mac` section of `package.json`, and add camera and microphone entitlements. See the [electron-builder code-signing guide](https://www.electron.build/code-signing).
+`npm run dist` builds an installer for the system you run it on (it has to run on that system: a Mac for macOS, Windows for Windows). The result is unsigned, so Windows and macOS will warn about it on other people's computers. To fix that for good, sign the builds: set `CSC_LINK` / `CSC_KEY_PASSWORD` (and Apple notarization credentials) in your environment, remove `"identity": "-"` and `"hardenedRuntime": false` from the `mac` section of `package.json`, and add camera and microphone entitlements. See the [electron-builder code-signing guide](https://www.electron.build/code-signing).
 
 ## Roadmap
 
@@ -180,7 +175,7 @@ To get rid of the first-run warnings, sign the builds: set `CSC_LINK` / `CSC_KEY
 - Automatic captions and searchable transcripts, generated on your own machine
 - Auto-zoom on what you're pointing at
 - A speaker-notes window that's visible to you but not to the recording
-- Signed builds and automatic updates
+- Signed installers (no Node.js needed) and automatic updates
 
 Ideas and pull requests are welcome.
 
