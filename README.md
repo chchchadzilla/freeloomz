@@ -68,7 +68,7 @@ Freeloomz is not yet signed with a paid Apple or Microsoft developer certificate
 
 - **macOS** — open the app, and when macOS blocks it go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. macOS then asks permission for screen recording, camera and microphone; after allowing screen recording it will ask you to reopen the app.
   Until the app is signed, macOS may ask for those permissions again after you install an update.
-- **Windows** — on the blue "Windows protected your PC" screen click **More info → Run anyway**.
+- **Windows** — on the blue "Windows protected your PC" screen click **More info → Run anyway**. If there is no **Run anyway** button (some PCs are set up to hide it), right-click the downloaded file → **Properties** → tick **Unblock** at the bottom → **OK**, then open it again.
 - **Linux** — make the AppImage executable (`chmod +x Freeloomz-*.AppImage`) and run it.
 
 ## Using it
