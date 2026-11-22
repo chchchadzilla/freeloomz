@@ -1,0 +1,44 @@
+name: Bug report
+description: Something does not work the way it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: Version of the operating system
+      placeholder: e.g. Windows 11 24H2, macOS 15.1, Ubuntu 24.04 (Wayland)
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install Freeloomz?
+      options:
+        - The PowerShell line (Windows)
+        - npm install -g
+        - From source (npm start)
+        - An installer I built myself
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Anything the app or the installer printed
+      description: Error messages, or what the terminal showed. Paste it as it is.
+      render: text

@@ -1,12 +1,23 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/wordmark-dark.png" />
-    <img src="docs/wordmark-light.png" alt="Freeloomz" width="420" />
-  </picture>
+  <img src="docs/banner.webp" alt="Freeloomz: record your screen and your face, for as long as you like. Free, open source, no time limit." width="100%" />
 </p>
 
-<p align="center"><b>Record your screen and your face. For as long as you like. For free.</b><br />
-No time limits · no accounts · no watermark · nothing leaves your computer</p>
+<p align="center">
+  <a href="#windows"><img src="docs/button-windows.png" alt="Install on Windows" height="46" /></a>&nbsp;
+  <a href="#macos-and-linux"><img src="docs/button-mac-linux.png" alt="Install on macOS and Linux" height="46" /></a>&nbsp;
+  <a href="#build-it-yourself"><img src="docs/button-source.png" alt="Build from source" height="46" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/chchchadzilla/Freeloomz/releases"><img src="https://img.shields.io/github/v/release/chchchadzilla/Freeloomz?style=flat-square&labelColor=0b0c10&color=c6ff3d&label=release" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/chchchadzilla/Freeloomz?style=flat-square&labelColor=0b0c10&color=c6ff3d" alt="MIT license" /></a>
+  <img src="https://img.shields.io/badge/runs_on-Windows_%C2%B7_macOS_%C2%B7_Linux-c6ff3d?style=flat-square&labelColor=0b0c10" alt="Runs on Windows, macOS and Linux" />
+  <a href="https://github.com/chchchadzilla/Freeloomz/stargazers"><img src="https://img.shields.io/github/stars/chchchadzilla/Freeloomz?style=flat-square&labelColor=0b0c10&color=c6ff3d" alt="GitHub stars" /></a>
+</p>
+
+Freeloomz is a desktop app for making walkthroughs, tutorials and how-to videos: it records your whole screen with your webcam in a round bubble you can park in any corner, plus your microphone. The free tiers of the usual tools cut you off after five minutes. This one doesn't cut you off at all.
+
+It runs on **Windows, macOS and Linux**.
 
 <p align="center">
   <img src="docs/screenshots/ready.png" alt="Freeloomz, ready to record" width="270" />
@@ -14,9 +25,7 @@ No time limits · no accounts · no watermark · nothing leaves your computer</p
   <img src="docs/screenshots/wrap.png" alt="Freeloomz after recording" width="270" />
 </p>
 
-Freeloomz is a desktop app for making walkthroughs, tutorials and how-to videos: it records your whole screen with your webcam in a round bubble you can park in any corner, plus your microphone. The free tiers of the usual tools cut you off after five minutes. This one doesn't cut you off at all.
-
-It runs on **macOS, Windows and Linux**.
+> **Early days.** This is version 0.1. It is developed and tested on Linux; Windows and macOS have had far less mileage. If something misbehaves on your machine, please [open an issue](https://github.com/chchchadzilla/Freeloomz/issues/new/choose) — it will get fixed.
 
 ## What it does
 
@@ -69,9 +78,9 @@ That's it. About a minute later Freeloomz opens, and it's in your Start menu and
 - **To remove it**, use Settings → Apps → Installed apps → Freeloomz. Your recordings are not touched.
 - **What the line does**: it downloads [`install.ps1`](install.ps1) from this repository and runs it. The script fetches the app from here, the [Electron](https://www.electronjs.org) runtime and [ffmpeg](https://ffmpeg.org) from their official GitHub releases (about 190 MB in all), checks each against the SHA-256 sums in [`runtime.json`](runtime.json), and puts everything in `%LOCALAPPDATA%\Programs\Freeloomz`. Read it first if you like; it's short.
 
-### macOS and Linux (or Windows, if you already have Node.js)
+### macOS and Linux
 
-You need [Node.js](https://nodejs.org) 22 or newer (`node -v` tells you). Then, in a terminal:
+This also works on Windows, if you already have Node.js. You need [Node.js](https://nodejs.org) 22 or newer (`node -v` tells you). Then, in a terminal:
 
 ```bash
 npm install -g https://github.com/chchchadzilla/Freeloomz/archive/refs/heads/main.tar.gz
@@ -203,7 +212,7 @@ A few decisions worth knowing about:
 - A speaker-notes window that's visible to you but not to the recording
 - Signed installers (no Node.js needed) and automatic updates
 
-Ideas and pull requests are welcome.
+Ideas and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). What changed in each version is in the [changelog](CHANGELOG.md).
 
 ## License
 

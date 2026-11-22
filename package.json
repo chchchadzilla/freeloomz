@@ -20,6 +20,7 @@
     "test:soak": "node test/e2e/soak.mjs",
     "typecheck": "tsc -p jsconfig.json",
     "icons": "node scripts/make-icons.mjs",
+    "screenshots": "node scripts/make-screenshots.mjs",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
@@ -94,11 +95,14 @@
     "url": "https://github.com/chchchadzilla/Freeloomz.git"
   },
   "homepage": "https://github.com/chchchadzilla/Freeloomz",
+  "bugs": "https://github.com/chchchadzilla/Freeloomz/issues",
   "keywords": [
     "screen-recorder",
     "webcam",
     "screencast",
     "tutorial",
+    "screen-recording",
+    "loom-alternative",
     "electron",
     "open-source"
   ]
