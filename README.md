@@ -55,6 +55,22 @@ It runs on **macOS, Windows and Linux**.
 
 ## Install
 
+### Windows
+
+Open **PowerShell** (press the Windows key, type `powershell`, press Enter), paste this line and press Enter:
+
+```powershell
+irm https://raw.githubusercontent.com/chchchadzilla/Freeloomz/main/install.ps1 | iex
+```
+
+That's it. About a minute later Freeloomz opens, and it's in your Start menu and on your Desktop like any other app. Nothing else needs to be installed first, and it doesn't ask for administrator rights.
+
+- **To update**, paste the same line again. Updates take a couple of seconds.
+- **To remove it**, use Settings → Apps → Installed apps → Freeloomz. Your recordings are not touched.
+- **What the line does**: it downloads [`install.ps1`](install.ps1) from this repository and runs it. The script fetches the app from here, the [Electron](https://www.electronjs.org) runtime and [ffmpeg](https://ffmpeg.org) from their official GitHub releases (about 190 MB in all), checks each against the SHA-256 sums in [`runtime.json`](runtime.json), and puts everything in `%LOCALAPPDATA%\Programs\Freeloomz`. Read it first if you like; it's short.
+
+### macOS and Linux (or Windows, if you already have Node.js)
+
 You need [Node.js](https://nodejs.org) 22 or newer (`node -v` tells you). Then, in a terminal:
 
 ```bash
@@ -65,14 +81,16 @@ npm install -g https://github.com/chchchadzilla/Freeloomz/archive/refs/heads/mai
 freeloomz
 ```
 
-The first start downloads the runtime the app runs on, once (about 110 MB). On Windows it also adds Freeloomz to your Start menu and Desktop, so from then on you open it like any other app. On macOS and Linux, run `freeloomz` whenever you want it.
+The first start downloads the runtime the app runs on, once. After that, run `freeloomz` whenever you want it.
 
 - **To update**, run the install command again.
-- **No Node.js yet?** On Windows: `winget install OpenJS.NodeJS.LTS`, then open a new terminal. On a Mac: `brew install node`.
+- **No Node.js yet?** On a Mac: `brew install node`.
 - **macOS** asks permission for screen recording, camera and microphone the first time; after allowing screen recording it will ask you to reopen the app. (The permission shows up under the name "Electron", the runtime Freeloomz uses.)
-- **To remove it**: `npm uninstall -g freeloomz`, then delete the `Freeloomz` folder in `%LOCALAPPDATA%` (Windows), `~/Library/Application Support` (macOS) or `~/.local/share` (Linux), and the shortcuts. Your recordings are not touched.
+- **To remove it**: `npm uninstall -g freeloomz`, then delete the `Freeloomz` folder in `~/Library/Application Support` (macOS), `~/.local/share` (Linux) or `%LOCALAPPDATA%` (Windows, plus the shortcuts). Your recordings are not touched.
 
-Why a command instead of a download? An installer that is not signed with a paid Apple or Microsoft certificate gets blocked or buried under warnings by Windows and macOS. Installing this way never triggers those, and it works the same on all three systems. Signed installers are on the roadmap.
+### Why a command instead of a download?
+
+An installer that is not signed with a paid Apple or Microsoft certificate gets blocked or buried under warnings by Windows and macOS when it is downloaded with a browser. Installing this way never triggers those. Signed installers are on the roadmap.
 
 ## Using it
 
@@ -134,6 +152,14 @@ npm run test:soak
 ```
 
 records for 6½ minutes while watching memory, and checks the file is complete and in sync with the clock. Set `SOAK_MINUTES=60` for a longer run.
+
+The Windows installer script can be tested without Windows. With [PowerShell 7](https://github.com/PowerShell/PowerShell) installed,
+
+```bash
+pwsh install.ps1 -Platform linux-x64 -InstallDir /tmp/freeloomz-test -Source . -NoLaunch
+```
+
+builds the same install from your working tree for Linux, and `FREELOOMZ_APP_BINARY=/tmp/freeloomz-test/freeloomz npm run test:e2e` runs the recording tests against it.
 
 ### How it's put together
 

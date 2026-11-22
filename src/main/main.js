@@ -41,13 +41,23 @@ const APP_ID = 'com.freeloomz.app';
 if (isWin) app.setAppUserModelId(APP_ID);
 
 /**
- * Installed with `npm install -g`, Freeloomz is first started from a
- * terminal. On Windows, add Start-menu and Desktop shortcuts then, so that
- * from that point on it opens like any other app. Redone only when the app
- * or its runtime has moved (after an update).
+ * Keeps the Windows Start-menu and Desktop shortcuts pointing at this copy
+ * of the app, and carrying its taskbar identity (without it Windows drops
+ * the app's notifications).
+ *
+ * - Installed with `npm install -g`, Freeloomz is first started from a
+ *   terminal: the shortcuts are created here, so that from then on it opens
+ *   like any other app.
+ * - Installed with install.ps1, the shortcuts already exist; they only get
+ *   the identity added, which a script cannot do.
+ *
+ * Redone only when the app or its runtime has moved (after an update).
  */
 function ensureWindowsShortcuts() {
-  if (!isWin || !process.defaultApp || !process.env.FREELOOMZ_LAUNCHER || E2E) return;
+  if (!isWin || E2E) return;
+  const viaLauncher = Boolean(process.defaultApp && process.env.FREELOOMZ_LAUNCHER);
+  const viaInstaller = !process.defaultApp && fs.existsSync(path.join(process.resourcesPath, 'freeloomz-install.json'));
+  if (!viaLauncher && !viaInstaller) return;
   try {
     const appDir = app.getAppPath();
     const marker = path.join(app.getPath('userData'), 'shortcuts.json');
@@ -61,8 +71,8 @@ function ensureWindowsShortcuts() {
     if (have && have.target === wanted.target && have.appDir === wanted.appDir) return;
     const options = {
       target: process.execPath,
-      args: `"${appDir}"`,
-      cwd: appDir,
+      args: viaLauncher ? `"${appDir}"` : '',
+      cwd: viaLauncher ? appDir : path.dirname(process.execPath),
       description: 'Freeloomz - screen and camera recorder',
       icon: path.join(appDir, 'assets', 'icon.ico'),
       iconIndex: 0,
@@ -72,15 +82,18 @@ function ensureWindowsShortcuts() {
       path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Freeloomz.lnk'),
       path.join(app.getPath('desktop'), 'Freeloomz.lnk'),
     ];
-    let created = false;
+    let written = false;
     for (const place of places) {
       try {
-        created = shell.writeShortcutLink(place, options) || created;
+        const exists = fs.existsSync(place);
+        // The installer decides which shortcuts exist; never add to them.
+        if (viaInstaller && !exists) continue;
+        written = shell.writeShortcutLink(place, exists ? 'replace' : 'create', options) || written;
       } catch (err) {
-        console.warn('[main] could not create shortcut', place, err);
+        console.warn('[main] could not write shortcut', place, err);
       }
     }
-    if (created) {
+    if (written) {
       fs.mkdirSync(path.dirname(marker), { recursive: true });
       fs.writeFileSync(marker, JSON.stringify(wanted));
     }

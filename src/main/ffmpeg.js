@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import { parseProbe, parseProgressSeconds, probeArgs } from '../shared/ffargs.js';
 
 let cachedPath = /** @type {string | null} */ (null);
@@ -10,6 +12,14 @@ export function ffmpegPath() {
   if (process.env.FREELOOMZ_FFMPEG) {
     cachedPath = process.env.FREELOOMZ_FFMPEG;
     return cachedPath;
+  }
+  // install.ps1 puts ffmpeg next to the app instead of inside node_modules.
+  if (process.resourcesPath) {
+    const installed = path.join(process.resourcesPath, 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
+    if (fs.existsSync(installed)) {
+      cachedPath = installed;
+      return cachedPath;
+    }
   }
   const require = createRequire(import.meta.url);
   /** @type {string} */

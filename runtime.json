@@ -1,0 +1,16 @@
+{
+  "electron": {
+    "version": "45.4.1",
+    "sha256": {
+      "win32-x64": "2ba6223afa9121f42831fefe92c434334907540165294fc56697449d12e7cfe9",
+      "linux-x64": "e1d077c7a087d7e344350ea0c5cd2b7dc5af3d9bf7979474f38e0fc1a560b875"
+    }
+  },
+  "ffmpeg": {
+    "release": "b6.1.1",
+    "sha256": {
+      "win32-x64": "8883a3dffbd0a16cf4ef95206ea05283f78908dbfb118f73c83f4951dcc06d77",
+      "linux-x64": "bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa"
+    }
+  }
+}
