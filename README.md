@@ -25,7 +25,7 @@ It runs on **Windows, macOS and Linux**.
   <img src="docs/screenshots/wrap.png" alt="Freeloomz after recording" width="270" />
 </p>
 
-> **Early days.** This is version 0.1. It is developed and tested on Linux; Windows and macOS have had far less mileage. If something misbehaves on your machine, please [open an issue](https://github.com/chchchadzilla/Freeloomz/issues/new/choose) — it will get fixed.
+> **Early days.** This is version 0.1. It is built and tested on Linux and used for real recordings on Windows. Nobody has tried it on a Mac yet, so if you do, say how it went. If something misbehaves on your machine, please [open an issue](https://github.com/chchchadzilla/Freeloomz/issues/new/choose) — it will get fixed.
 
 ## What it does
 
